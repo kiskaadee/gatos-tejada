@@ -1,0 +1,45 @@
+# --- Local Environments & Secrets ---
+.venv/
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+
+.env
+.env.*
+!.env.example    # Keep templates tracked
+*.pem
+*.key
+client_secret*.json
+
+# --- Python & Build ---
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+build/
+dist/
+
+# --- IDE & Editor Settings ---
+.vscode/
+.idea/
+.DS_Store
+
+# --- Agentic & Cloud CLI Tools ---
+# Global/Local agent configuration & memory files
+.claude/
+.gemini/
+.cursor/
+.windsurf/
+.aider*/
+.codex/
+.antigravity*/
+
+# Tool-specific session/memory/metadata
+*.session
+*.log
+memory.json
+agents.json
+MCP/
+
