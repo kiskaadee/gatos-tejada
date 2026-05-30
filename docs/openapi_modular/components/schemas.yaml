@@ -1,0 +1,163 @@
+User:
+  type: object
+  required:
+    - id
+    - name
+    - email
+    - trust_score
+    - captured_count
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: Juan Perez
+    email:
+      type: string
+      format: email
+      example: juan.perez@gmail.com
+    trust_score:
+      type: number
+      format: float
+      description: Reputational metric scaling from 0.0 (untrusted) to 1.0 (highly reliable).
+      example: 0.85
+    captured_count:
+      type: integer
+      description: Total number of unique sculptures verified.
+      example: 12
+
+Sculpture:
+  type: object
+  required:
+    - id
+    - name
+    - artist
+    - year
+    - latitude
+    - longitude
+    - status
+  properties:
+    id:
+      type: string
+      format: uuid
+    name:
+      type: string
+      example: La Novia Dulce
+    artist:
+      type: string
+      example: Lorena Espitia
+    year:
+      type: integer
+      example: 2006
+    latitude:
+      type: number
+      format: float
+      example: 3.450143
+    longitude:
+      type: number
+      format: float
+      example: -76.533282
+    status:
+      type: string
+      enum: [on-site, moved, missing]
+      description: Operational status of the sculpture.
+      example: on-site
+
+SculptureDetails:
+  allOf:
+    - $ref: '#/Sculpture'
+    - type: object
+      properties:
+        description:
+          type: string
+          example: Decorated with sweets and candies representing Cali's culinary traditions.
+        audio_url:
+          type: string
+          format: uri
+          example: https://cdn.gatos.cali.gov.co/audio/novia_dulce.mp3
+        unlocked_content:
+          type: string
+          description: Extended history/curation (hidden until captured).
+          example: This sculpture was crafted in tribute to the traditional festival of Macetas.
+
+CheckInRecord:
+  type: object
+  required:
+    - sculpture_id
+    - unlocked_at
+    - similarity_score
+  properties:
+    sculpture_id:
+      type: string
+      format: uuid
+    unlocked_at:
+      type: string
+      format: date-time
+      example: 2026-05-30T10:15:30Z
+    checkin_photo_url:
+      type: string
+      format: uri
+      example: https://cdn.gatos.cali.gov.co/uploads/checkin_9823.jpg
+    similarity_score:
+      type: number
+      format: float
+      example: 0.92
+
+Ticket:
+  type: object
+  required:
+    - id
+    - reporter_id
+    - sculpture_id
+    - latitude
+    - longitude
+    - reported_status
+    - status
+    - created_at
+  properties:
+    id:
+      type: string
+      format: uuid
+    reporter_id:
+      type: string
+      format: uuid
+    sculpture_id:
+      type: string
+      format: uuid
+    latitude:
+      type: number
+      format: float
+      example: 3.4515
+    longitude:
+      type: number
+      format: float
+      example: -76.5320
+    reported_status:
+      type: string
+      enum: [moved, missing, on-site]
+    photo_url:
+      type: string
+      format: uri
+      nullable: true
+      example: https://cdn.gatos.cali.gov.co/uploads/report_8321.jpg
+    description:
+      type: string
+      example: Under construction for street repairs. Pedestal is empty.
+    status:
+      type: string
+      enum: [pending, approved, rejected]
+      example: pending
+    created_at:
+      type: string
+      format: date-time
+      example: 2026-05-30T11:00:00Z
+    resolved_at:
+      type: string
+      format: date-time
+      nullable: true
+      example: null
+    notes:
+      type: string
+      nullable: true
+      example: Verified via municipal service coordinates.

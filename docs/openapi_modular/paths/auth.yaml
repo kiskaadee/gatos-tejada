@@ -1,0 +1,39 @@
+post:
+  summary: Google SSO Authentication
+  description: Exchange a Google OAuth ID token for a system-issued JWT access token.
+  operationId: loginUser
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - id_token
+          properties:
+            id_token:
+              type: string
+              description: The ID token returned by Google OAuth.
+  responses:
+    '200':
+      description: Successful authentication
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - access_token
+              - token_type
+              - expires_in
+            properties:
+              access_token:
+                type: string
+                description: JWT access token for subsequent requests.
+              token_type:
+                type: string
+                example: Bearer
+              expires_in:
+                type: integer
+                description: Token lifetime in seconds.
+    '401':
+      description: Invalid token provided.

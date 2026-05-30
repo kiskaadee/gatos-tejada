@@ -1,0 +1,508 @@
+openapi: 3.0.3
+info:
+  title: Novias del Gato API - Unified
+  description: |
+    Single, comprehensive API contract for the "Novias del Gato" digital ecosystem in Cali, Colombia.
+    This unified spec manages user profiles, sculpture data (The Oracle), GPS/vision-based check-ins,
+    and crowdsourced status reports with moderator verification.
+  version: 1.0.0
+servers:
+  - url: https://api.gatos.cali.gov.co/v1
+    description: Production Server
+  - url: http://localhost:8000/v1
+    description: Local Development Server
+paths:
+  /auth/login:
+    post:
+      summary: Google SSO Authentication
+      description: Exchange a Google OAuth ID token for a system-issued JWT access token.
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - id_token
+              properties:
+                id_token:
+                  type: string
+                  description: The ID token returned by Google OAuth.
+      responses:
+        '200':
+          description: Successful authentication
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - access_token
+                  - token_type
+                  - expires_in
+                properties:
+                  access_token:
+                    type: string
+                    description: JWT access token for subsequent requests.
+                  token_type:
+                    type: string
+                    example: Bearer
+                  expires_in:
+                    type: integer
+                    description: Token lifetime in seconds.
+        '401':
+          description: Invalid token provided.
+
+  /users/me:
+    get:
+      summary: Retrieve Current User Profile
+      description: Get details about the authenticated user, including their community trust score.
+      operationId: getMyProfile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me/collection:
+    get:
+      summary: Get User's Unlocked Sculptures
+      description: Returns the user's progress tracking which cat sculptures they have successfully captured.
+      operationId: getMyCollection
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of check-ins / captures
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CheckInRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sculptures:
+    get:
+      summary: List All Cat Sculptures
+      description: Returns list of all sculptures with names, locations, and current status (Single Source of Truth).
+      operationId: listSculptures
+      responses:
+        '200':
+          description: List of sculptures
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Sculpture'
+
+  /sculptures/{id}:
+    get:
+      summary: Get Sculpture Details
+      description: Detailed information about a sculpture, historical context, artist, and unlockable audio guides.
+      operationId: getSculptureById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detailed sculpture object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SculptureDetails'
+        '404':
+          description: Sculpture not found.
+
+  /sculptures/{id}/check-in:
+    post:
+      summary: Capture / Check-in to a Sculpture
+      description: |
+        Perform physical verification by sending the explorer's current GPS location and a freshly captured photo.
+        The Recognition Service verifies the photo matches the sculpture model embeddings within proximity.
+      operationId: checkInSculpture
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - photo
+                - latitude
+                - longitude
+              properties:
+                photo:
+                  type: string
+                  format: binary
+                  description: Sighting image file (JPEG/PNG) to analyze.
+                latitude:
+                  type: number
+                  format: float
+                  minimum: -90
+                  maximum: 90
+                  example: 3.4501
+                longitude:
+                  type: number
+                  format: float
+                  minimum: -180
+                  maximum: 180
+                  example: -76.5332
+      responses:
+        '200':
+          description: Verification outcome
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - similarity_score
+                properties:
+                  success:
+                    type: boolean
+                    description: True if the image embedding matched and location was within threshold.
+                  similarity_score:
+                    type: number
+                    format: float
+                    description: Visual confidence score (0.0 to 1.0).
+                  unlocked_content:
+                    type: string
+                    description: Cultural facts or reward text if successfully captured for the first time.
+                  reward_badge:
+                    type: string
+                    description: Name of the badge unlocked, if any.
+        '400':
+          description: Invalid coordinates or image file format.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /reports:
+    post:
+      summary: Submit a Sculpture Location Report
+      description: |
+        Allows citizens to report if a sculpture is missing, undergoing maintenance, or has been relocated.
+        Supplying GPS coordinates and an optional photo helps update the status map via the weighted consensus engine.
+      operationId: submitReport
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - sculpture_id
+                - latitude
+                - longitude
+                - reported_status
+              properties:
+                sculpture_id:
+                  type: string
+                  format: uuid
+                latitude:
+                  type: number
+                  format: float
+                  example: 3.4515
+                longitude:
+                  type: number
+                  format: float
+                  example: -76.5320
+                reported_status:
+                  type: string
+                  enum: [moved, missing, on-site]
+                  description: The observed state of the sculpture.
+                photo:
+                  type: string
+                  format: binary
+                  description: Optional verification photo of empty pedestal or relocated site.
+                description:
+                  type: string
+                  maxLength: 500
+                  description: Context about the change.
+      responses:
+        '201':
+          description: Report ticket successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      summary: List Crowdsourced Reports (Moderator Only)
+      description: Retrieve reports/tickets submitted by users, filterable by status for verification.
+      operationId: listReports
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+        - name: sculpture_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Array of reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ticket'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/{id}/verify:
+    put:
+      summary: Resolve Location Ticket (Moderator Only)
+      description: Manually accept or reject a user report. Approving a report updates the location oracle and recalculates user trust scores.
+      operationId: verifyReport
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [approved, rejected]
+                notes:
+                  type: string
+                  maxLength: 300
+                  description: Review notes explaining the resolution.
+      responses:
+        '200':
+          description: Ticket resolved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Ticket not found.
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    Unauthorized:
+      description: Authentication token missing or expired.
+    Forbidden:
+      description: Insufficient permissions for this action.
+
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - trust_score
+        - captured_count
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Juan Perez
+        email:
+          type: string
+          format: email
+          example: juan.perez@gmail.com
+        trust_score:
+          type: number
+          format: float
+          description: Reputational metric scaling from 0.0 (untrusted) to 1.0 (highly reliable).
+          example: 0.85
+        captured_count:
+          type: integer
+          description: Total number of unique sculptures verified.
+          example: 12
+
+    Sculpture:
+      type: object
+      required:
+        - id
+        - name
+        - artist
+        - year
+        - latitude
+        - longitude
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: La Novia Dulce
+        artist:
+          type: string
+          example: Lorena Espitia
+        year:
+          type: integer
+          example: 2006
+        latitude:
+          type: number
+          format: float
+          example: 3.450143
+        longitude:
+          type: number
+          format: float
+          example: -76.533282
+        status:
+          type: string
+          enum: [on-site, moved, missing]
+          description: Operational status of the sculpture.
+          example: on-site
+
+    SculptureDetails:
+      allOf:
+        - $ref: '#/components/schemas/Sculpture'
+        - type: object
+          properties:
+            description:
+              type: string
+              example: Decorated with sweets and candies representing Cali's culinary traditions.
+            audio_url:
+              type: string
+              format: uri
+              example: https://cdn.gatos.cali.gov.co/audio/novia_dulce.mp3
+            unlocked_content:
+              type: string
+              description: Extended history/curation (hidden until captured).
+              example: This sculpture was crafted in tribute to the traditional festival of Macetas.
+
+    CheckInRecord:
+      type: object
+      required:
+        - sculpture_id
+        - unlocked_at
+        - similarity_score
+      properties:
+        sculpture_id:
+          type: string
+          format: uuid
+        unlocked_at:
+          type: string
+          format: date-time
+          example: 2026-05-30T10:15:30Z
+        checkin_photo_url:
+          type: string
+          format: uri
+          example: https://cdn.gatos.cali.gov.co/uploads/checkin_9823.jpg
+        similarity_score:
+          type: number
+          format: float
+          example: 0.92
+
+    Ticket:
+      type: object
+      required:
+        - id
+        - reporter_id
+        - sculpture_id
+        - latitude
+        - longitude
+        - reported_status
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        reporter_id:
+          type: string
+          format: uuid
+        sculpture_id:
+          type: string
+          format: uuid
+        latitude:
+          type: number
+          format: float
+          example: 3.4515
+        longitude:
+          type: number
+          format: float
+          example: -76.5320
+        reported_status:
+          type: string
+          enum: [moved, missing, on-site]
+        photo_url:
+          type: string
+          format: uri
+          nullable: true
+          example: https://cdn.gatos.cali.gov.co/uploads/report_8321.jpg
+        description:
+          type: string
+          example: Under construction for street repairs. Pedestal is empty.
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+          example: pending
+        created_at:
+          type: string
+          format: date-time
+          example: 2026-05-30T11:00:00Z
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        notes:
+          type: string
+          nullable: true
+          example: Verified via municipal service coordinates.

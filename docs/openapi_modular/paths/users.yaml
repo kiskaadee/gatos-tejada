@@ -1,0 +1,35 @@
+me:
+  get:
+    summary: Retrieve Current User Profile
+    description: Get details about the authenticated user, including their community trust score.
+    operationId: getMyProfile
+    security:
+      - BearerAuth: []
+    responses:
+      '200':
+        description: Success
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/User'
+      '401':
+        description: Authentication token missing or expired.
+
+collection:
+  get:
+    summary: Get User's Unlocked Sculptures
+    description: Returns the user's progress tracking which cat sculptures they have successfully captured.
+    operationId: getMyCollection
+    security:
+      - BearerAuth: []
+    responses:
+      '200':
+        description: List of check-ins / captures
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yaml#/CheckInRecord'
+      '401':
+        description: Authentication token missing or expired.

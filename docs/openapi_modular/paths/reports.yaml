@@ -1,0 +1,130 @@
+collection:
+  post:
+    summary: Submit a Sculpture Location Report
+    description: |
+      Allows citizens to report if a sculpture is missing, undergoing maintenance, or has been relocated.
+      Supplying GPS coordinates and an optional photo helps update the status map via the weighted consensus engine.
+    operationId: submitReport
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+              - sculpture_id
+              - latitude
+              - longitude
+              - reported_status
+            properties:
+              sculpture_id:
+                type: string
+                format: uuid
+              latitude:
+                type: number
+                format: float
+                example: 3.4515
+              longitude:
+                type: number
+                format: float
+                example: -76.5320
+              reported_status:
+                type: string
+                enum: [moved, missing, on-site]
+                description: The observed state of the sculpture.
+              photo:
+                type: string
+                format: binary
+                description: Optional verification photo of empty pedestal or relocated site.
+              description:
+                type: string
+                maxLength: 500
+                description: Context about the change.
+    responses:
+      '201':
+        description: Report ticket successfully created
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/Ticket'
+      '401':
+        description: Authentication token missing or expired.
+
+  get:
+    summary: List Crowdsourced Reports (Moderator Only)
+    description: Retrieve reports/tickets submitted by users, filterable by status for verification.
+    operationId: listReports
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum: [pending, approved, rejected]
+      - name: sculpture_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+    responses:
+      '200':
+        description: Array of reports
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '../components/schemas.yaml#/Ticket'
+      '401':
+        description: Authentication token missing or expired.
+      '403':
+        description: Insufficient permissions for this action.
+
+verify:
+  put:
+    summary: Resolve Location Ticket (Moderator Only)
+    description: Manually accept or reject a user report. Approving a report updates the location oracle and recalculates user trust scores.
+    operationId: verifyReport
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - status
+            properties:
+              status:
+                type: string
+                enum: [approved, rejected]
+              notes:
+                type: string
+                maxLength: 300
+                description: Review notes explaining the resolution.
+    responses:
+      '200':
+        description: Ticket resolved successfully
+        content:
+          application/json:
+            schema:
+              $ref: '../components/schemas.yaml#/Ticket'
+      '401':
+        description: Authentication token missing or expired.
+      '403':
+        description: Insufficient permissions for this action.
+      '404':
+        description: Ticket not found.
