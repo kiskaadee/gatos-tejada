@@ -152,11 +152,12 @@ paths:
                 - photo
                 - latitude
                 - longitude
+                - embedding
               properties:
                 photo:
                   type: string
                   format: binary
-                  description: Sighting image file (JPEG/PNG) to analyze.
+                  description: Compressed sighting image file (JPEG/PNG, recommended 800x800px, 75% quality).
                 latitude:
                   type: number
                   format: float
@@ -169,6 +170,12 @@ paths:
                   minimum: -180
                   maximum: 180
                   example: -76.5332
+                embedding:
+                  type: array
+                  items:
+                    type: number
+                    format: float
+                  description: Client-side generated image embedding vector (e.g. 1280 float array from MobileNetV2).
       responses:
         '200':
           description: Verification outcome

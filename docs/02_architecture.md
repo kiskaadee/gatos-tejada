@@ -18,7 +18,7 @@
 *   **API / Contract:** OpenAPI (Swagger).
 *   **Database:** PostgreSQL + PostGIS (Spatial data).
 *   **Vector Search Engine:** `pgvector` (PostgreSQL extension) for storing and comparing image embeddings.
-*   **Backend:** Python (FastAPI) for high-performance concurrency and vision model integration.
+*   **Backend:** Python (FastAPI) for high-performance concurrency, business logic, and spatial/vector database routing.
 *   **Identity (Auth):** Google OAuth + JWT.
 *   **Frontend:** Next.js (PWA) using WebXR/Camera APIs for the Visual Check-in experience.
 *   **Infrastructure:** Docker / Modular Monolith.
